@@ -1,1 +1,1 @@
-
+Please note: All scripts in this directory are considered as example scripts, and not used to make the final cohort. This will require defining an exact cohort which matches the specification of your study.
