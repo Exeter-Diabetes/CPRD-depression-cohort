@@ -1,7 +1,7 @@
 # CPRD depression cohort
 **NOTE:** This GitHub is currently under development. While all code is present, there may be substantial changes to definitions at the descretion of the author.
 
-For further information, please contact: \n
+For further information, please contact: <br />
 Dr. Dale Handley \n
 Social, Genetic, and Developmental Psychiatry Centre \n
 King's College London \n
