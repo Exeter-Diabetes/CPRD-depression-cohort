@@ -2,6 +2,7 @@
 **NOTE:** This GitHub is currently under development. While all code is present, there may be substantial changes to definitions at the descretion of the author.
 
 For further information, please contact: <br />
+<br />
 Dr. Dale Handley <br />
 Social, Genetic, and Developmental Psychiatry Centre <br />
 King's College London <br />
