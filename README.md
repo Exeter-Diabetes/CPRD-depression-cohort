@@ -1,5 +1,11 @@
 # CPRD depression cohort
-**NOTE:** This GitHub page is a work in progress. Code lists will be made available as the project progresses. 
+**NOTE:** This GitHub is currently under development. While all code is present, there may be substantial changes to definitions at the descretion of the author.
+
+For further information, please contact:
+Dr. Dale Handley
+Social, Genetic, and Developmental Psychiatry Centre
+King's College London
+dale.handley@kcl.ac.uk
 
 ## Cohort definition
 This Github details the construction of the CPRD depression cohort using the February 2024 CPRD data extraction.
