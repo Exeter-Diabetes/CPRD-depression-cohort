@@ -5,23 +5,21 @@
 This Github details the construction of the CPRD depression cohort using the February 2024 CPRD data extraction.
 The intent of this approach is to maximise the number of individuals where their current depressive episode represents their first ever depressive episode.
 
-The inclusion and exclusion for this cohort prior to study-specific QC have been adapted from previous work presented [HERE](https://github.com/Exeter-Diabetes/CPRD-Cohort-scripts)
+The inclusion and exclusion for this cohort prior to study-specific QC have been adapted from previous work presented [HERE](https://github.com/Exeter-Diabetes/CPRD-Cohort-scripts) Several key changes, as outlined in this README section, were required given the episodic nature of depression, however the baseline QC follows a similar flow.
 
 **Inclusion:**
-  - A Quality Outcome Framework code for depression
-  - If the Quality Outcome Framework code is not diagnostic, another diagnostic "broad" depression code
+  - A Quality Outcome Framework code for depression. This is a SNOMED-CT code set pushed by [NHS primary care domain reference sets](https://www.opencodelists.org/codelist/nhsd-primary-care-domain-refsets/depr_cod/20250912/) and acts as the primary source for receiving a re-imburseable depression diagnosis. This code list also includes "non-diagnostic" codes, such as "Treatment resistant depression", which are re-imburseable but definitionally require previous GP consultation to be valid. Therefore, we required that individuals have at least one broad "diagnostic" QOF depression code at any time during their clinical journey.
 
 **Exclusion:**
-  - Patient is from one of the 44 practices that may have merged (unreliable patient data tracking)
+  - Patient is from one of the 44 practices that may have merged. This removes individuals who might have unreliable data tracking due to administrational changes.
   - Undetermined Gender
   - Non-diagnostic depression codes present at first evidence of depression (see broad_depression code list).
-  - Diagnosed with depression after introduction depression into the Quality and Outcomes Framework (01/04/2025)
+  - Diagnosed with depression after introduction of depression into the Quality and Outcomes Framework (01/04/2006). Prior to 2006, there were systematic regional differences in how depression was coded in primary care. This has been minimised with the use of QOF-standardised clinical codes. 
 
 All scripts related to the baseline QC of the cohort can be found [HERE](scripts/cohort/)
 
 ### Index date definition
-While all individuals were required to have a QOF depression medcode for inclusion in this study, we allowed index dates to reflect the earliest occurrence of depression identified using the 
-"Broad depression" phenotype.
+While all individuals were required to have a QOF depression medcode for inclusion in this study, we allowed index dates to reflect the earliest occurrence of depression identified using the "Broad depression" code list (found [HERE] (
 
 ```mermaid
 flowchart TD
