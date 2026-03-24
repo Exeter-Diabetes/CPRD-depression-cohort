@@ -5,7 +5,7 @@
 This Github details the construction of the CPRD depression cohort using the February 2024 CPRD data extraction.
 The intent of this approach is to maximise the number of individuals where their current depressive episode represents their first ever depressive episode.
 
-The inclusion and exclusion for this cohort prior to study-specific QC have been adapted from previous work presented [HERE]([www.github.com](https://github.com/Exeter-Diabetes/CPRD-Cohort-scripts))
+The inclusion and exclusion for this cohort prior to study-specific QC have been adapted from previous work presented [HERE](https://github.com/Exeter-Diabetes/CPRD-Cohort-scripts)
 
 **Inclusion:**
   - A Quality Outcome Framework code for depression
