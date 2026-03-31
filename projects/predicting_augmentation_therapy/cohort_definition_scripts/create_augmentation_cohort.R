@@ -296,20 +296,20 @@
     print(paste("Inserted chunk", i, "of", nchunks))
   }
   
-  #Now table is here, let's merge tables together:
-  analysis <- cprd$analysis("dh_augment")
-  cohort_interim_5 <- cohort_interim_5 %>% analysis$cached("cohort_interim_5")
-  ap <- ap %>% analysis$cached("first_antipsychotic")
+#Now table is here, let's merge tables together:
+analysis <- cprd$analysis("dh_augment")
+cohort_interim_5 <- cohort_interim_5 %>% analysis$cached("cohort_interim_5")
+ap <- ap %>% analysis$cached("first_antipsychotic")
   
-  cohort_interim_5 %>% left_join(ap, by = "patid") %>%
+cohort_interim_5 %>% left_join(ap, by = "patid") %>%
     mutate(
       any_ap_before_index = coalesce(any_ap_before_index, FALSE),
       augmentation_status = coalesce(augmentation_status, "control")
     ) %>% filter(!augmentation_status == "exclude") %>% count()
   
   
-  #Final cohort
-  cohort_interim_6 <- cohort_interim_5 %>% left_join(ap, by = "patid") %>%
+#Final cohort
+cohort_interim_6 <- cohort_interim_5 %>% left_join(ap, by = "patid") %>%
     mutate(
       any_ap_before_index = coalesce(any_ap_before_index, FALSE),
       augmentation_status = coalesce(augmentation_status, "control")
@@ -318,11 +318,11 @@
   #Add in healthcare use variables at baseline, and also BMI.
   analysis <- cprd$analysis("dh_augment")
   
-  cohort_interim_6 <- cohort_interim_6 %>% analysis$cached("cohort_interim_6")
-  consult <- consult %>% analysis$cached("prior_consultations")
-  hes <- hes %>% analysis$cached("prior_HES")
+cohort_interim_6 <- cohort_interim_6 %>% analysis$cached("cohort_interim_6")
+consult <- consult %>% analysis$cached("prior_consultations")
+hes <- hes %>% analysis$cached("prior_HES")
   
-  cohort_interim_7 <- cohort_interim_6 %>%
+cohort_interim_7 <- cohort_interim_6 %>%
     left_join(consult, by = "patid") %>%
     left_join(hes, by = "patid") %>%
     mutate(
@@ -331,12 +331,12 @@
     ) %>% analysis$cached("cohort_interim_7")
   
   #Next, load in BMI
-  analysis <- cprd$analysis("all_patid")
-  bmi <- bmi %>% analysis$cached("clean_bmi_medcodes")
+analysis <- cprd$analysis("all_patid")
+bmi <- bmi %>% analysis$cached("clean_bmi_medcodes")
   
-  analysis <- cprd$analysis("dh_augment")
+analysis <- cprd$analysis("dh_augment")
   
-  bmi_short <- bmi %>%
+bmi_short <- bmi %>%
     inner_join(cohort %>% select(patid, first_antidep_date), by = "patid") %>%
     mutate(difftime = datediff(date, first_antidep_date)) %>%
     filter(difftime <= 0, difftime > -730) %>%
@@ -346,8 +346,23 @@
     select(patid, bmi = testvalue) %>% 
     mutate(obesity = ifelse(bmi >= 30.0, 1, 0))
   
-  cohort_interim_8 <- cohort_interim_7 %>%
+cohort_interim_8 <- cohort_interim_7 %>%
     left_join(bmi_short, by = "patid") %>%
     analysis$cached("cohort_interim_8")
-  
+
+#Load in the PHQ-9
+phq <- phq %>% analysis$cached("phq_scores_at_index")
+phq <- phq %>% mutate(
+  phq_cat = 
+    case_when(
+    phq_score < 10 ~ "not valid", 
+    phq_score >= 10 & phq_score <= 14 ~ "Moderate",
+    phq_score >= 15 & phq_score <= 19 ~ "Moderate-severe",
+    phq_score >= 20 & phq_score <= 27 ~ "Severe"
+  )
+)
+
+cohort_interim_9 <- cohort_interim_8 %>% 
+  left_join(phq %>% select(patid, phq_score, phq_cat), by = "patid") %>%
+  analysis$cached("cohort_interim_9")
 
