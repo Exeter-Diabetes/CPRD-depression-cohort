@@ -363,7 +363,7 @@ phq <- phq %>% mutate(
 )
 
 # Also, remove people who have a PHQ-9 score of < 10 at baseline
-analysis <- cprd$analysis("dh_agument")
+analysis <- cprd$analysis("dh_augment")
 cohort_interim_8 <- cohort_interim_8 %>% analysis$cached("cohort_interim_8")
 
 cohort_interim_9 <- cohort_interim_8 %>% 
@@ -371,23 +371,13 @@ cohort_interim_9 <- cohort_interim_8 %>%
   filter(phq_score >= 10 | is.na(phq_score)) %>% 
   analysis$cached("cohort_interim_9")
 
-#Remove people who have a pre-existing diagnosis at index.
-analysis <- cprd$analysis("all_patid")
-dem <- dementia %>% analysis$cached("raw_dementia_medcodes")
-dem_icd <- dem_icd %>% analysis$cached("raw_dementia_icd10")
-
-dem <- dem %>% select(patid, date = obsdate, source = "GP")
-dem_icd <- dem_icd %>% select(patid, date = epistart)
-
-dem <- dem %>% 
-  union_all(dem_icd) %>% 
-  distinct() %>% 
-  group_by(patid) %>%
-  window_order(date) %>% 
-  slice_min(date, n = 1, with_ties = FALSE) %>% 
-  ungroup()
-
-
-
+#Load in the cleaned dementia data
 analysis <- cprd$analysis("dh_augment")
-cohort_interim_10 <- 
+dem <- dem %>% analysis$cached("first_dementia_date")
+dem <- dem %>% mutate(first_dementia_date = date)
+
+cohort_interim_10 <- cohort_interim_9 %>%
+  left_join(dem, by = "patid") %>%
+  mutate(time_to_dementia = datediff(first_dementia_date, first_antidep_date)) %>%
+  filter(time_to_dementia > 0 | is.na(time_to_dementia)) %>%
+analysis$cached("cohort_interim_10")
