@@ -381,3 +381,35 @@ cohort_interim_10 <- cohort_interim_9 %>%
   mutate(time_to_dementia = datediff(first_dementia_date, first_antidep_date)) %>%
   filter(time_to_dementia > 0 | is.na(time_to_dementia)) %>%
 analysis$cached("cohort_interim_10")
+
+
+#Interim 11 - self-harm
+#Avoids use of pmin as it can be a bit unstable in MySQL conversion.
+cohort_interim_11 <- cohort_interim_10 %>%
+  left_join(first_self_harm_gp, by = "patid") %>%
+  left_join(first_self_harm_icd10, by = "patid") %>%
+  mutate(
+    first_selfharm_any = case_when(
+      is.na(first_selfharm_gp) & is.na(first_selfharm_hosp) ~ NA_Date_,
+      is.na(first_selfharm_gp)                              ~ first_selfharm_hosp,
+      is.na(first_selfharm_hosp)                            ~ first_selfharm_gp,
+      first_selfharm_gp <= first_selfharm_hosp              ~ first_selfharm_gp,
+      TRUE                                                  ~ first_selfharm_hosp
+    ),
+    selfharm_gp_status = case_when(
+      is.na(first_selfharm_gp)                ~ "none",
+      first_selfharm_gp < first_antidep_date  ~ "pre-existing",
+      first_selfharm_gp >= first_antidep_date ~ "incident"
+    ),
+    selfharm_hosp_status = case_when(
+      is.na(first_selfharm_hosp)                ~ "none",
+      first_selfharm_hosp < first_antidep_date  ~ "pre-existing",
+      first_selfharm_hosp >= first_antidep_date ~ "incident"
+    ),
+    selfharm_any_status = case_when(
+      is.na(first_selfharm_any)                ~ "none",
+      first_selfharm_any < first_antidep_date  ~ "pre-existing",
+      first_selfharm_any >= first_antidep_date ~ "incident"
+    )
+  ) %>%
+  analysis$cached("cohort_interim_11")
