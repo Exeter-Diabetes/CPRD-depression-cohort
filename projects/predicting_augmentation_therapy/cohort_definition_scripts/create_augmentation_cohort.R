@@ -198,104 +198,106 @@
     filter(!epilepsy_status == "pre_existing") %>% 
     analysis$cached("cohort_interim_5")
   
+analysis <- cprd$analysis("all_patid")
+ap <- ap %>% analysis$cached("clean_antipsychotics_prodcodes")
+
+
+# Add in augmentation
+exclude_drugs <- c("prochlorperazine", "promazine", "levomepromazine", 
+                   "flupentixol", "amitriptyline")
+
+augment_drugs <- c("quetiapine", "risperidone", "olanzapine", "aripiprazole")
+
+
+ap_post <- ap %>%
+  inner_join(cohort_interim_5 %>% 
+               select(patid, first_antidep_date), by = "patid") %>%
+  collect()
+
+ap_post <- ap_post %>%
+  mutate(
+    chem_name = antipsychotics_cat %>%
+      str_trim() %>%
+      str_to_lower() %>%
+      str_remove("\\s.*$")
+  ) %>%
+  select(-antipsychotics_cat) %>%
+  filter(!chem_name %in% exclude_drugs) %>%
+  arrange(patid, issuedate) %>%
   
-  analysis <- cprd$analysis("all_patid")
-  ap <- ap %>% analysis$cached("clean_antipsychotics_prodcodes")
+  # ---- Flag any antipsychotic before or on index date
+  group_by(patid) %>%
+  mutate(any_ap_before_index = any(issuedate <= first_antidep_date)) %>%
   
+  # ---- First post-index antipsychotic only
+  filter(issuedate > first_antidep_date) %>%
+  slice_min(order_by = issuedate, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
   
-  #Add in augmentation
-      exclude_drugs <- c("prochlorperazine", "promazine", "levomepromazine", 
-                         "flupentixol", "amitriptyline")
-      
-      augment_drugs <- c("quetiapine", "risperidone", "olanzapine", "aripiprazole")
+  # ---- Classify
+  mutate(
+    augmentation_status = case_when(
+      any_ap_before_index          ~ "exclude",
+      chem_name %in% augment_drugs ~ "case",
+      TRUE                         ~ "censored"
+    ),
+    augmentation_date = issuedate
+  ) %>%
+  rename(first_antipsychotic_name = chem_name) %>%
+  select(patid, any_ap_before_index, augmentation_status, augmentation_date, 
+         first_antipsychotic_name)
+
+
+# Upload
+dbExecute(con2, "
+CREATE TABLE dh_augment_first_antipsychotic (
+  patid                    BIGINT,
+  any_ap_before_index      TINYINT(1),
+  augmentation_status      VARCHAR(20),
+  augmentation_date        DATE,
+  first_antipsychotic_name VARCHAR(100)
+);
+")
+
+chunksize  <- 50000
+total_rows <- nrow(ap_post)
+nchunks    <- ceiling(total_rows / chunksize)
+
+for (i in seq_len(nchunks)) {
   
+  idx   <- ((i - 1) * chunksize + 1):min(i * chunksize, total_rows)
+  chunk <- ap_post[idx, ]
   
-  ap_post <- ap %>%
-    inner_join(cohort_interim_5 %>% 
-                 select(patid, first_antidep_date), by = "patid") %>%
-        collect()
+  processed <- lapply(chunk, function(col) {
+    if (is.character(col) || is.factor(col)) {
+      paste0("'", gsub("'", "''", as.character(col)), "'")
+    } else if (inherits(col, "Date")) {
+      ifelse(is.na(col), "NULL", paste0("'", format(col, "%Y-%m-%d"), "'"))
+    } else if (is.logical(col)) {
+      ifelse(is.na(col), "NULL", as.integer(col))
+    } else if (is.numeric(col)) {
+      ifelse(is.na(col) | is.nan(col) | is.infinite(col),
+             "NULL",
+             format(col, scientific = FALSE))
+    } else {
+      rep("NULL", length(col))
+    }
+  })
   
-  ap_post <- ap_post %>%
-    mutate(
-      chem_name = antipsychotics_cat %>%
-        str_trim() %>%
-        str_to_lower() %>%
-        str_remove("\\s.*$")
-    ) %>%
-    select(-antipsychotics_cat) %>%
-    filter(!chem_name %in% exclude_drugs) %>%
-    arrange(patid, issuedate) %>%
-    
-    # ---- Flag any antipsychotic before or on index date
-    group_by(patid) %>%
-    mutate(any_ap_before_index = any(issuedate <= first_antidep_date)) %>%
-    
-    # ---- First post-index antipsychotic only
-    filter(issuedate > first_antidep_date) %>%
-    slice_min(order_by = issuedate, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    
-    # ---- Classify
-    mutate(
-      augmentation_status = case_when(
-        any_ap_before_index          ~ "exclude",
-        chem_name %in% augment_drugs ~ "case",
-        TRUE                         ~ "censored"
-      ),
-      augmentation_date = issuedate
-    ) %>%
-    select(patid, any_ap_before_index, augmentation_status, augmentation_date)
+  row_strings <- do.call(paste, c(processed, sep = ","))
+  row_strings <- paste0("(", row_strings, ")")
   
+  query <- paste0(
+    "INSERT INTO dh_augment_first_antipsychotic (",
+    paste(colnames(ap_post), collapse = ", "),
+    ") VALUES ",
+    paste(row_strings, collapse = ",")
+  )
   
-  # Upload
-  dbExecute(con2, "
-  CREATE TABLE dh_augment_first_antipsychotic (
-    patid               BIGINT,
-    any_ap_before_index TINYINT(1),
-    augmentation_status VARCHAR(20),
-    augmentation_date   DATE
-  );
-  ")
-  
-  chunksize  <- 50000
-  total_rows <- nrow(ap_post)
-  nchunks    <- ceiling(total_rows / chunksize)
-  
-  for (i in seq_len(nchunks)) {
-    
-    idx   <- ((i - 1) * chunksize + 1):min(i * chunksize, total_rows)
-    chunk <- ap_post[idx, ]
-    
-    processed <- lapply(chunk, function(col) {
-      if (is.character(col) || is.factor(col)) {
-        paste0("'", gsub("'", "''", as.character(col)), "'")
-      } else if (inherits(col, "Date")) {
-        ifelse(is.na(col), "NULL", paste0("'", format(col, "%Y-%m-%d"), "'"))
-      } else if (is.logical(col)) {
-        ifelse(is.na(col), "NULL", as.integer(col))
-      } else if (is.numeric(col)) {
-        ifelse(is.na(col) | is.nan(col) | is.infinite(col),
-               "NULL",
-               format(col, scientific = FALSE))
-      } else {
-        rep("NULL", length(col))
-      }
-    })
-    
-    row_strings <- do.call(paste, c(processed, sep = ","))
-    row_strings <- paste0("(", row_strings, ")")
-    
-    query <- paste0(
-      "INSERT INTO dh_augment_first_antipsychotic (",
-      paste(colnames(ap_post), collapse = ", "),
-      ") VALUES ",
-      paste(row_strings, collapse = ",")
-    )
-    
-    dbExecute(con2, query)
-    print(paste("Inserted chunk", i, "of", nchunks))
-  }
-  
+  dbExecute(con2, query)
+  print(paste("Inserted chunk", i, "of", nchunks))
+}  
+
 #Now table is here, let's merge tables together:
 analysis <- cprd$analysis("dh_augment")
 cohort_interim_5 <- cohort_interim_5 %>% analysis$cached("cohort_interim_5")
@@ -413,3 +415,6 @@ cohort_interim_11 <- cohort_interim_10 %>%
     )
   ) %>%
   analysis$cached("cohort_interim_11")
+
+
+
