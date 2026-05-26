@@ -416,5 +416,28 @@ cohort_interim_11 <- cohort_interim_10 %>%
   ) %>%
   analysis$cached("cohort_interim_11")
 
+analysis <- cprd$analysis("all_patid")
+anx <- anx %>% analysis$cached("first_anxiety_mixed_dates")
+aut <- aut %>% analysis$cached("first_autism_dates") %>% 
+  rename(first_autism_date = first_tablename)
 
+add <- add %>% analysis$cached("first_ADHD_dates") %>%
+  rename(first_ADHD_date = first_tablename)
+
+ins <- ins %>% analysis$cached("first_insomnia_sga_dates")%>%
+  rename(first_insomnia_date = first_tablename)
+
+sle <- sle %>% analysis$cached("first_sleep_disorders_sga_dates") %>%
+  rename(first_sleep_disorder_date = first_tablename)
+
+# Next, we add these to the current table
+analysis <- cprd$analysis("dh_augment")
+
+cohort_interim_12 <- cohort_interim_11 %>% 
+  left_join(anx, by = "patid") %>%
+  left_join(aut, by = "patid") %>%
+  left_join(add, by = "patid") %>%
+  left_join(ins, by = "patid") %>%
+  left_join(sle, by = "patid") %>%
+  analysis$cached("cohort_interim_12")
 
